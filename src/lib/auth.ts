@@ -1,10 +1,16 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
+    Google({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      allowDangerousEmailAccountLinking: true,
+    }),
     Credentials({
       name: "Credentials",
       credentials: {
@@ -41,6 +47,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         if (!user) return null;
 
+        // Check if email is verified
+        if (!user.emailVerified) {
+          throw new Error("Please verify your email before logging in");
+        }
+
         const isValid = await bcrypt.compare(password, user.passwordHash);
         if (!isValid) return null;
 
@@ -59,6 +70,37 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     })
   ],
   callbacks: {
+    async signIn({ user, account }) {
+      if (account?.provider === "google") {
+        const email = user.email;
+        if (!email) return false;
+
+        // Check if user exists
+        let dbUser = await prisma.user.findUnique({
+          where: { email }
+        });
+
+        // Create user if doesn't exist
+        if (!dbUser) {
+          dbUser = await prisma.user.create({
+            data: {
+              email,
+              name: user.name || email.split("@")[0],
+              passwordHash: "", // Google users don't need password
+              role: "CAPTAIN",
+              status: "ACTIVE",
+              emailVerified: new Date(), // Auto-verify Google users
+            }
+          });
+        }
+
+        // Update user object with DB data
+        user.id = dbUser.id;
+        user.role = dbUser.role;
+        user.status = dbUser.status;
+      }
+      return true;
+    },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id as string;
@@ -79,6 +121,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   session: { strategy: "jwt" },
   pages: {
     signIn: "/login",
+    error: "/login",
   }
 });
 

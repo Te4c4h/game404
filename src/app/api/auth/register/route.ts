@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { sendVerificationEmail } from "@/lib/email";
+import crypto from "crypto";
 
 const registerSchema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -30,14 +32,29 @@ export async function POST(req: Request) {
         email,
         passwordHash,
         role: "CAPTAIN",
+        emailVerified: null,
       }
     });
 
-    return NextResponse.json({ message: "Account created successfully", userId: user.id }, { status: 201 });
+    // Generate verification token
+    const token = crypto.randomUUID();
+    await prisma.verificationToken.create({
+      data: {
+        email,
+        token,
+        expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+      }
+    });
+
+    // Send verification email
+    await sendVerificationEmail(email, token);
+
+    return NextResponse.json({ message: "Account created. Please check your email to verify." }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ message: (error as any).errors[0].message }, { status: 400 });
     }
+    console.error("Registration error:", error);
     return NextResponse.json({ message: "Something went wrong. Please try again." }, { status: 500 });
   }
 }

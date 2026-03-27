@@ -35,13 +35,14 @@ enum PaymentStatus {
 }
 
 model User {
-  id           String         @id @default(cuid())
-  name         String
-  email        String         @unique
-  passwordHash String
-  role         Role           @default(CAPTAIN)
-  status       UserStatus     @default(ACTIVE)
-  createdAt    DateTime       @default(now())
+  id            String         @id @default(cuid())
+  name          String
+  email         String         @unique
+  passwordHash  String
+  role          Role           @default(CAPTAIN)
+  status        UserStatus     @default(ACTIVE)
+  emailVerified DateTime?
+  createdAt     DateTime       @default(now())
   
   registrations Registration[]
 }
@@ -108,4 +109,14 @@ model Match {
   createdAt    DateTime   @default(now())
   
   tournament   Tournament @relation(fields: [tournamentId], references: [id])
+}
+
+model VerificationToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([email, token])
 }
