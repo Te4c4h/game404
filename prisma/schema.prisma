@@ -1,0 +1,111 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  CAPTAIN
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  BANNED
+}
+
+enum GameStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum TournamentStatus {
+  DRAFT
+  OPEN
+  ONGOING
+  COMPLETED
+}
+
+enum PaymentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id           String         @id @default(cuid())
+  name         String
+  email        String         @unique
+  passwordHash String
+  role         Role           @default(CAPTAIN)
+  status       UserStatus     @default(ACTIVE)
+  createdAt    DateTime       @default(now())
+  
+  registrations Registration[]
+}
+
+model Game {
+  id                String       @id @default(cuid())
+  name              String
+  imageUrl          String
+  maxPlayersPerTeam Int
+  status            GameStatus   @default(ACTIVE)
+  createdAt         DateTime     @default(now())
+  
+  tournaments       Tournament[]
+}
+
+model Tournament {
+  id                   String           @id @default(cuid())
+  gameId               String
+  name                 String
+  description          String           @db.Text
+  rules                String           @db.Text
+  maxTeams             Int
+  entryFee             Int
+  prizePool            Int
+  prizeDistribution    String           @db.Text
+  paymentInstructions  String           @db.Text
+  registrationDeadline DateTime
+  startDate            DateTime
+  status               TournamentStatus @default(DRAFT)
+  createdAt            DateTime         @default(now())
+  
+  game                 Game             @relation(fields: [gameId], references: [id])
+  registrations        Registration[]
+  matches              Match[]
+}
+
+model Registration {
+  id              String        @id @default(cuid())
+  tournamentId    String
+  userId          String
+  teamName        String
+  players         Json
+  paymentProofUrl String
+  paymentStatus   PaymentStatus @default(PENDING)
+  createdAt       DateTime      @default(now())
+  
+  tournament      Tournament    @relation(fields: [tournamentId], references: [id])
+  user            User          @relation(fields: [userId], references: [id])
+
+  @@unique([tournamentId, userId])
+}
+
+model Match {
+  id           String     @id @default(cuid())
+  tournamentId String
+  round        Int
+  position     Int
+  team1Id      String?
+  team2Id      String?
+  score1       Int        @default(0)
+  score2       Int        @default(0)
+  winnerId     String?
+  locked       Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  
+  tournament   Tournament @relation(fields: [tournamentId], references: [id])
+}
