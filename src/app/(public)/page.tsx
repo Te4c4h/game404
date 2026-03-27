@@ -8,39 +8,55 @@ import { TournamentCard } from "@/components/tournaments/TournamentCard";
 export const revalidate = 60;
 
 async function getFeaturedGames() {
-  return prisma.game.findMany({
-    where: { status: "ACTIVE" },
-    orderBy: { createdAt: "desc" },
-    take: 4,
-  });
+  try {
+    return await prisma.game.findMany({
+      where: { status: "ACTIVE" },
+      orderBy: { createdAt: "desc" },
+      take: 4,
+    });
+  } catch {
+    return [];
+  }
 }
 
 async function getFeaturedTournaments() {
-  return prisma.tournament.findMany({
-    where: { status: { in: ["OPEN", "ONGOING"] } },
-    include: { game: true },
-    orderBy: { startDate: "asc" },
-    take: 4,
-  });
+  try {
+    return await prisma.tournament.findMany({
+      where: { status: { in: ["OPEN", "ONGOING"] } },
+      include: { game: true },
+      orderBy: { startDate: "asc" },
+      take: 4,
+    });
+  } catch {
+    return [];
+  }
 }
 
 async function getCompletedTournaments() {
-  return prisma.tournament.findMany({
-    where: { status: "COMPLETED" },
-    include: { game: true },
-    orderBy: { startDate: "desc" },
-    take: 3,
-  });
+  try {
+    return await prisma.tournament.findMany({
+      where: { status: "COMPLETED" },
+      include: { game: true },
+      orderBy: { startDate: "desc" },
+      take: 3,
+    });
+  } catch {
+    return [];
+  }
 }
 
 async function getStats() {
-  const [gamesCount, tournamentsCount, usersCount, completedCount] = await Promise.all([
-    prisma.game.count({ where: { status: "ACTIVE" } }),
-    prisma.tournament.count({ where: { status: { in: ["OPEN", "ONGOING"] } } }),
-    prisma.user.count({ where: { role: "CAPTAIN" } }),
-    prisma.tournament.count({ where: { status: "COMPLETED" } }),
-  ]);
-  return { gamesCount, tournamentsCount, usersCount, completedCount };
+  try {
+    const [gamesCount, tournamentsCount, usersCount, completedCount] = await Promise.all([
+      prisma.game.count({ where: { status: "ACTIVE" } }),
+      prisma.tournament.count({ where: { status: { in: ["OPEN", "ONGOING"] } } }),
+      prisma.user.count({ where: { role: "CAPTAIN" } }),
+      prisma.tournament.count({ where: { status: "COMPLETED" } }),
+    ]);
+    return { gamesCount, tournamentsCount, usersCount, completedCount };
+  } catch {
+    return { gamesCount: 0, tournamentsCount: 0, usersCount: 0, completedCount: 0 };
+  }
 }
 
 const containerVariants = {
