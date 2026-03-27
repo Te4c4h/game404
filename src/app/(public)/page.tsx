@@ -28,7 +28,7 @@ async function getCompletedTournaments() {
   return prisma.tournament.findMany({
     where: { status: "COMPLETED" },
     include: { game: true },
-    orderBy: { endDate: "desc" },
+    orderBy: { startDate: "desc" },
     take: 3,
   });
 }
@@ -219,7 +219,7 @@ export default async function HomePage() {
       </section>
 
       {/* Games We Play */}
-      <section className="py-20 bg-[#111111]">
+      <section id="games" className="py-20 bg-[#111111]">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between mb-10">
             <div>
@@ -266,7 +266,7 @@ export default async function HomePage() {
       </section>
 
       {/* How It Works */}
-      <section className="py-20">
+      <section id="how-it-works" className="py-20">
         <div className="container mx-auto px-4">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
