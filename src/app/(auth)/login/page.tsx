@@ -7,6 +7,8 @@ import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 
+// Google OAuth Login Page
+
 function GoogleIcon() {
   return (
     <svg className="h-5 w-5" viewBox="0 0 24 24">
