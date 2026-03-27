@@ -7,7 +7,7 @@ interface TournamentCardProps {
   name: string;
   status: any;
   gameName: string;
-  gameImageUrl: string;
+  gameImageUrl: string | null | undefined;
   prizePool: number;
   entryFee: number;
   registeredTeams: number;
@@ -16,10 +16,11 @@ interface TournamentCardProps {
 }
 
 export function TournamentCard({ id, name, status, gameName, gameImageUrl, prizePool, entryFee, registeredTeams, maxTeams, startDate }: TournamentCardProps) {
+  const imageSrc = gameImageUrl || "";
   return (
     <Link href={`/tournaments/${id}`} className="group block bg-[#111111] border-[1.5px] border-[#2A2A2A] rounded-[16px] overflow-hidden hover:border-primary transition-all duration-300 shadow-xl hover:shadow-primary/10">
       <div className="h-40 relative overflow-hidden bg-[#1A1A1A]">
-        <img src={gameImageUrl} alt={gameName} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-60" />
+        <img src={imageSrc} alt={gameName} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-60" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#111111] via-[#111111]/80 to-transparent" />
         <div className="absolute top-4 right-4"><StatusBadge status={status} /></div>
       </div>

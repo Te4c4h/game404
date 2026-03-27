@@ -3,15 +3,16 @@ import Link from "next/link";
 interface GameCardProps {
   id: string;
   name: string;
-  imageUrl: string;
+  imageUrl: string | null | undefined;
   activeCount: number;
 }
 
 export function GameCard({ id, name, imageUrl, activeCount }: GameCardProps) {
+  const imageSrc = imageUrl || "";
   return (
     <div className="group relative rounded-[16px] overflow-hidden border-[1.5px] border-[#2A2A2A] bg-[#111111] hover:border-primary transition-all duration-300 shadow-xl hover:shadow-primary/10">
       <div className="w-full aspect-square relative overflow-hidden bg-[#1A1A1A]">
-        <img src={imageUrl} alt={name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        <img src={imageSrc} alt={name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/60 to-transparent" />
       </div>
       <div className="absolute inset-0 w-full h-full p-6 flex flex-col justify-end">

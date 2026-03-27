@@ -1,81 +1,93 @@
+"use client";
+
 import Link from "next/link";
-import prisma from "@/lib/prisma";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Trophy, Gamepad2, Users, Calendar, ChevronRight, Zap, Target, Medal, ArrowRight } from "lucide-react";
+import { Trophy, Gamepad2, Users, Calendar, ChevronRight, Zap, Target, Medal } from "lucide-react";
 import { GameCard } from "@/components/games/GameCard";
 import { TournamentCard } from "@/components/tournaments/TournamentCard";
 
-export const revalidate = 60;
-
-async function getFeaturedGames() {
-  try {
-    return await prisma.game.findMany({
-      where: { status: "ACTIVE" },
-      orderBy: { createdAt: "desc" },
-      take: 4,
-    });
-  } catch {
-    return [];
-  }
+interface Tournament {
+  id: string;
+  name: string;
+  status: string;
+  prizePool: number;
+  entryFee: number;
+  maxTeams: number;
+  startDate: string;
+  game: {
+    name: string;
+    imageUrl: string | null;
+  };
 }
 
-async function getFeaturedTournaments() {
-  try {
-    return await prisma.tournament.findMany({
-      where: { status: { in: ["OPEN", "ONGOING"] } },
-      include: { game: true },
-      orderBy: { startDate: "asc" },
-      take: 4,
-    });
-  } catch {
-    return [];
-  }
+interface Game {
+  id: string;
+  name: string;
+  imageUrl: string | null;
 }
 
-async function getCompletedTournaments() {
-  try {
-    return await prisma.tournament.findMany({
-      where: { status: "COMPLETED" },
-      include: { game: true },
-      orderBy: { startDate: "desc" },
-      take: 3,
-    });
-  } catch {
-    return [];
-  }
-}
-
-async function getStats() {
-  try {
-    const [gamesCount, tournamentsCount, usersCount, completedCount] = await Promise.all([
-      prisma.game.count({ where: { status: "ACTIVE" } }),
-      prisma.tournament.count({ where: { status: { in: ["OPEN", "ONGOING"] } } }),
-      prisma.user.count({ where: { role: "CAPTAIN" } }),
-      prisma.tournament.count({ where: { status: "COMPLETED" } }),
-    ]);
-    return { gamesCount, tournamentsCount, usersCount, completedCount };
-  } catch {
-    return { gamesCount: 0, tournamentsCount: 0, usersCount: 0, completedCount: 0 };
-  }
+interface Stats {
+  gamesCount: number;
+  tournamentsCount: number;
+  usersCount: number;
+  completedCount: number;
 }
 
 const containerVariants = {
   hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1 },
+  },
 };
 
 const itemVariants = {
   hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0 }
+  visible: { opacity: 1, y: 0 },
 };
 
-export default async function HomePage() {
-  const [games, tournaments, completedTournaments, stats] = await Promise.all([
-    getFeaturedGames(),
-    getFeaturedTournaments(),
-    getCompletedTournaments(),
-    getStats(),
-  ]);
+export default function HomePage() {
+  const [games, setGames] = useState<Game[]>([]);
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  const [stats, setStats] = useState<Stats>({ gamesCount: 0, tournamentsCount: 0, usersCount: 0, completedCount: 0 });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [gamesRes, tournamentsRes, statsRes] = await Promise.all([
+          fetch("/api/games?status=ACTIVE"),
+          fetch("/api/tournaments"),
+          fetch("/api/stats"),
+        ]);
+
+        const [gamesData, tournamentsData, statsData] = await Promise.all([
+          gamesRes.json(),
+          tournamentsRes.json(),
+          statsRes.json(),
+        ]);
+
+        setGames(gamesData.slice(0, 4));
+        setTournaments(tournamentsData.filter((t: Tournament) => t.status === "OPEN" || t.status === "ONGOING").slice(0, 4));
+        setStats(statsData);
+      } catch {
+        // Silent fail - show empty states
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#0A0A0A]">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -83,7 +95,7 @@ export default async function HomePage() {
       <section className="relative bg-[#0A0A0A] min-h-[600px] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,#00FF8715_0%,transparent_50%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,#00FF8710_0%,transparent_50%)]" />
-        
+
         <motion.div className="absolute top-20 left-10 w-2 h-2 bg-primary rounded-full opacity-40"
           animate={{ y: [0, -20, 0], opacity: [0.4, 0.8, 0.4] }}
           transition={{ duration: 4, repeat: Infinity }}
@@ -91,10 +103,6 @@ export default async function HomePage() {
         <motion.div className="absolute top-40 right-20 w-3 h-3 bg-primary rounded-full opacity-30"
           animate={{ y: [0, 20, 0], opacity: [0.3, 0.6, 0.3] }}
           transition={{ duration: 5, repeat: Infinity, delay: 1 }}
-        />
-        <motion.div className="absolute bottom-40 left-1/4 w-2 h-2 bg-primary rounded-full opacity-50"
-          animate={{ y: [0, -15, 0], opacity: [0.5, 0.9, 0.5] }}
-          transition={{ duration: 3, repeat: Infinity, delay: 2 }}
         />
 
         <div className="container mx-auto px-4 z-10">
@@ -108,7 +116,7 @@ export default async function HomePage() {
                 Armenia&apos;s #1<br /><span className="text-primary">Esports Arena</span>
               </h1>
             </motion.div>
-            <motion.p 
+            <motion.p
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.2 }}
@@ -116,22 +124,22 @@ export default async function HomePage() {
             >
               Register your team, compete in tournaments, and claim your prize.
             </motion.p>
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.4 }}
               className="mt-10 flex flex-col sm:flex-row gap-4 justify-center"
             >
-              <Link 
-                href="#tournaments" 
-                className="group bg-primary text-[#0A0A0A] font-semibold px-8 py-4 rounded-[8px] hover:bg-[#00CC6A] transition-all inline-flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
+              <Link
+                href="#tournaments"
+                className="group bg-primary text-[#0A0A0A] font-semibold px-8 py-4 rounded-[8px] hover:bg-[#00CC6A] transition-all inline-flex items-center justify-center gap-2"
               >
                 <Trophy className="h-5 w-5" />
                 Browse Tournaments
                 <ChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
               </Link>
-              <Link 
-                href="/register" 
+              <Link
+                href="/register"
                 className="group bg-transparent border-[1.5px] border-primary text-primary font-semibold px-8 py-4 rounded-[8px] hover:bg-primary/10 transition-all inline-flex items-center justify-center gap-2"
               >
                 <Users className="h-5 w-5" />
@@ -145,7 +153,7 @@ export default async function HomePage() {
       {/* Stats Section */}
       <section className="bg-[#111111] py-12 border-y border-border/30">
         <div className="container mx-auto px-4">
-          <motion.div 
+          <motion.div
             variants={containerVariants}
             initial="hidden"
             whileInView="visible"
@@ -181,7 +189,7 @@ export default async function HomePage() {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between mb-10">
             <div>
-              <motion.h2 
+              <motion.h2
                 initial={{ opacity: 0, x: -20 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
@@ -197,11 +205,11 @@ export default async function HomePage() {
           {tournaments.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {tournaments.map((tournament, index) => (
-                <motion.div 
-                  key={tournament.id} 
-                  initial={{ opacity: 0, y: 30 }} 
-                  whileInView={{ opacity: 1, y: 0 }} 
-                  viewport={{ once: true }} 
+                <motion.div
+                  key={tournament.id}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
                   transition={{ delay: index * 0.1 }}
                 >
                   <TournamentCard
@@ -209,18 +217,18 @@ export default async function HomePage() {
                     name={tournament.name}
                     status={tournament.status}
                     gameName={tournament.game.name}
-                    gameImageUrl={tournament.game.imageUrl}
+                    gameImageUrl={tournament.game.imageUrl || undefined}
                     prizePool={tournament.prizePool}
                     entryFee={tournament.entryFee}
                     registeredTeams={0}
                     maxTeams={tournament.maxTeams}
-                    startDate={tournament.startDate}
+                    startDate={new Date(tournament.startDate)}
                   />
                 </motion.div>
               ))}
             </div>
           ) : (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               whileInView={{ opacity: 1 }}
               viewport={{ once: true }}
@@ -239,7 +247,7 @@ export default async function HomePage() {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between mb-10">
             <div>
-              <motion.h2 
+              <motion.h2
                 initial={{ opacity: 0, x: -20 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
@@ -255,19 +263,19 @@ export default async function HomePage() {
           {games.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {games.map((game, index) => (
-                <motion.div 
-                  key={game.id} 
-                  initial={{ opacity: 0, y: 30 }} 
-                  whileInView={{ opacity: 1, y: 0 }} 
-                  viewport={{ once: true }} 
+                <motion.div
+                  key={game.id}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
                   transition={{ delay: index * 0.1 }}
                 >
-                  <GameCard id={game.id} name={game.name} imageUrl={game.imageUrl} activeCount={0} />
+                  <GameCard id={game.id} name={game.name} imageUrl={game.imageUrl || undefined} activeCount={0} />
                 </motion.div>
               ))}
             </div>
           ) : (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               whileInView={{ opacity: 1 }}
               viewport={{ once: true }}
@@ -284,7 +292,7 @@ export default async function HomePage() {
       {/* How It Works */}
       <section id="how-it-works" className="py-20">
         <div className="container mx-auto px-4">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -295,7 +303,7 @@ export default async function HomePage() {
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -312,7 +320,7 @@ export default async function HomePage() {
               </div>
             </motion.div>
 
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -329,7 +337,7 @@ export default async function HomePage() {
               </div>
             </motion.div>
 
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -349,65 +357,11 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Recent Results */}
-      {completedTournaments.length > 0 && (
-        <section className="py-20 bg-[#111111]">
-          <div className="container mx-auto px-4">
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="text-center mb-10"
-            >
-              <h2 className="font-heading text-[28px] md:text-[32px] font-bold text-white flex items-center justify-center gap-3">
-                <Medal className="h-8 w-8 text-primary" />
-                Recent Results
-              </h2>
-              <p className="text-muted-foreground font-sans mt-2">Latest completed tournaments on Game404</p>
-            </motion.div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {completedTournaments.map((tournament, index) => (
-                <motion.div 
-                  key={tournament.id} 
-                  initial={{ opacity: 0, y: 30 }} 
-                  whileInView={{ opacity: 1, y: 0 }} 
-                  viewport={{ once: true }} 
-                  transition={{ delay: index * 0.1 }}
-                  className="bg-[#0A0A0A] border border-[#2A2A2A] rounded-xl p-6 hover:border-primary/50 transition-all"
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded">
-                        {tournament.game.name}
-                      </span>
-                      <h3 className="font-heading text-lg font-bold text-white mt-2">{tournament.name}</h3>
-                    </div>
-                    <Trophy className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">
-                      Prize: <span className="text-white font-medium">{tournament.prizePool.toLocaleString()} AMD</span>
-                    </span>
-                    <Link 
-                      href={`/tournaments/${tournament.id}`}
-                      className="text-primary hover:text-[#00CC6A] font-medium flex items-center gap-1"
-                    >
-                      View <ArrowRight className="h-4 w-4" />
-                    </Link>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
       {/* CTA Section */}
       <section className="py-20 relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,#00FF8715_0%,transparent_70%)]" />
         <div className="container mx-auto px-4 relative z-10">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
@@ -420,15 +374,15 @@ export default async function HomePage() {
               Join hundreds of Armenian gamers competing for glory and prizes. Register your team today.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link 
-                href="/register" 
+              <Link
+                href="/register"
                 className="bg-primary text-[#0A0A0A] font-semibold px-8 py-4 rounded-[8px] hover:bg-[#00CC6A] transition-all inline-flex items-center justify-center gap-2"
               >
                 <Users className="h-5 w-5" />
                 Create Free Account
               </Link>
-              <Link 
-                href="#tournaments" 
+              <Link
+                href="#tournaments"
                 className="bg-transparent border-[1.5px] border-white/30 text-white font-semibold px-8 py-4 rounded-[8px] hover:bg-white/10 transition-all inline-flex items-center justify-center gap-2"
               >
                 <Trophy className="h-5 w-5" />
