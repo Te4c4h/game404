@@ -1,8 +1,15 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+function getResend() {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    throw new Error("RESEND_API_KEY environment variable is not set");
+  }
+  return new Resend(apiKey);
+}
 
 export async function sendVerificationEmail(email: string, token: string) {
+  const resend = getResend();
   const confirmUrl = `${process.env.NEXT_PUBLIC_APP_URL}/verify-email?token=${token}`;
 
   try {
@@ -32,6 +39,7 @@ export async function sendVerificationEmail(email: string, token: string) {
 }
 
 export async function sendPasswordResetEmail(email: string, token: string) {
+  const resend = getResend();
   const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL}/reset-password?token=${token}`;
 
   try {
